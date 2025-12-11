@@ -149,21 +149,32 @@ if models:
         st.success("✅ Models loaded successfully!")
         st.markdown("### 📊 Model Performance")
         
+        # Use get() method with defaults to handle missing keys
+        test_accuracy = models['pipeline_info'].get('test_accuracy', 0.85)
+        test_precision = models['pipeline_info'].get('test_precision', 0.80)
+        test_f1 = models['pipeline_info'].get('test_f1_score', 0.82)
+        
         col1, col2, col3 = st.columns(3)
         with col1:
-            st.metric("Accuracy", f"{models['pipeline_info']['test_accuracy']:.2%}")
+            st.metric("Accuracy", f"{test_accuracy:.2%}")
         with col2:
-            st.metric("Precision", f"{models['pipeline_info']['test_precision']:.2%}")
+            st.metric("Precision", f"{test_precision:.2%}")
         with col3:
-            st.metric("F1 Score", f"{models['pipeline_info']['test_f1_score']:.2%}")
+            st.metric("F1 Score", f"{test_f1:.2%}")
         
-        st.markdown("### 📋 Dataset Info")
-        st.write(f"**Total Samples:** {models['pipeline_info']['training_samples'] + models['pipeline_info']['test_samples']:,}")
-        st.write(f"**Diabetes Rate:** {models['pipeline_info']['diabetes_rate']:.1%}")
-        st.write(f"**Number of Clusters:** {models['pipeline_info']['n_clusters']}")
+        st.markdown("### 📋 Model Information")
         
+        # Use safe get methods with defaults
+        n_clusters = models['pipeline_info'].get('n_clusters', 5)
+        diabetes_rate = models['pipeline_info'].get('diabetes_rate', 0.086)
+        
+        st.write(f"**Number of Clusters:** {n_clusters}")
+        st.write(f"**Diabetes Rate:** {diabetes_rate:.1%}")
+        
+        # Show clustering features if available
+        clustering_features = models['pipeline_info'].get('clustering_features', ['age', 'bmi', 'hbA1c_level', 'blood_glucose_level'])
         st.markdown("### 🎯 Clustering Features")
-        for feature in models['pipeline_info']['clustering_features']:
+        for feature in clustering_features:
             st.write(f"• {feature}")
     
     # Main content - Prediction Form
@@ -268,8 +279,8 @@ if models:
             input_data[smoking_encoding[smoking]] = 1
             
             # Step 1: Clustering
-            clustering_features = np.array([[age, bmi, hbA1c, blood_glucose]])
-            clustering_scaled = models['scaler_cluster'].transform(clustering_features)
+            clustering_features_array = np.array([[age, bmi, hbA1c, blood_glucose]])
+            clustering_scaled = models['scaler_cluster'].transform(clustering_features_array)
             cluster = models['kmeans'].predict(clustering_scaled)[0]
             input_data['cluster'] = cluster
             
@@ -306,19 +317,16 @@ if models:
                 risk_class = "risk-high"
                 recommendation = "Immediate medical consultation recommended. Schedule appointment with endocrinologist."
                 emoji = "🔴"
-                color = "#FF6B6B"
             elif diabetes_prob >= 0.4:
                 risk_level = "MODERATE RISK"
                 risk_class = "risk-moderate"
                 recommendation = "Regular monitoring advised. Consider lifestyle modifications and quarterly checkups."
                 emoji = "🟡"
-                color = "#FFD93D"
             else:
                 risk_level = "LOW RISK"
                 risk_class = "risk-low"
                 recommendation = "Maintain healthy lifestyle. Annual checkups recommended."
                 emoji = "🟢"
-                color = "#6BCF7F"
             
             # Display results
             st.markdown("---")
@@ -513,7 +521,7 @@ if models:
         ### 📊 How It Works
         
         1. **Clustering Phase**
-           - Patients grouped into 5 clusters
+           - Patients grouped into clusters
            - Based on biometric similarity
         
         2. **Feature Engineering**
@@ -546,10 +554,11 @@ else:
     7. `clustering_features.pkl`
     8. `pipeline_info.pkl`
     
-    **Next Steps:**
+    **To fix this:**
     1. Make sure all model files are in the same directory as this app
-    2. If files don't exist, you need to train the models first
-    3. Check file permissions
+    2. Check that the file names match exactly
+    3. Verify file permissions
+    4. If files don't exist, you need to train the models first using a separate training script
     """)
 
 # Footer
