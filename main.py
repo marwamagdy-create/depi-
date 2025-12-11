@@ -147,20 +147,6 @@ if models:
     # Display model info in sidebar
     with st.sidebar:
         st.success("✅ Models loaded successfully!")
-        st.markdown("### 📊 Model Performance")
-        
-        # Use get() method with defaults to handle missing keys
-        test_accuracy = models['pipeline_info'].get('test_accuracy', 0.85)
-        test_precision = models['pipeline_info'].get('test_precision', 0.80)
-        test_f1 = models['pipeline_info'].get('test_f1_score', 0.82)
-        
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Accuracy", f"{test_accuracy:.2%}")
-        with col2:
-            st.metric("Precision", f"{test_precision:.2%}")
-        with col3:
-            st.metric("F1 Score", f"{test_f1:.2%}")
         
         st.markdown("### 📋 Model Information")
         
@@ -570,3 +556,4 @@ st.markdown("""
     <p><small>⚠️ Always consult healthcare professionals for medical diagnosis</small></p>
 </div>
 """, unsafe_allow_html=True)
+
