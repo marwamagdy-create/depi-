@@ -2,8 +2,6 @@ import streamlit as st
 import numpy as np
 import pandas as pd
 import joblib
-import plotly.graph_objects as go
-import plotly.express as px
 
 # Set page configuration
 st.set_page_config(
@@ -32,16 +30,28 @@ st.markdown("""
         color: #FF6B6B;
         font-weight: bold;
         font-size: 1.2rem;
+        padding: 10px;
+        background-color: #FFE6E6;
+        border-radius: 5px;
+        border-left: 5px solid #FF6B6B;
     }
     .risk-moderate {
         color: #FFD93D;
         font-weight: bold;
         font-size: 1.2rem;
+        padding: 10px;
+        background-color: #FFF9E6;
+        border-radius: 5px;
+        border-left: 5px solid #FFD93D;
     }
     .risk-low {
         color: #6BCF7F;
         font-weight: bold;
         font-size: 1.2rem;
+        padding: 10px;
+        background-color: #E6FFEB;
+        border-radius: 5px;
+        border-left: 5px solid #6BCF7F;
     }
     .stButton > button {
         width: 100%;
@@ -55,6 +65,13 @@ st.markdown("""
         border-radius: 10px;
         border-left: 5px solid #2E86AB;
         margin: 10px 0;
+    }
+    .cluster-box {
+        background-color: #E6F7FF;
+        padding: 15px;
+        border-radius: 8px;
+        margin: 10px 0;
+        border: 1px solid #B3E0FF;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -285,16 +302,19 @@ if models:
                     risk_class = "risk-high"
                     recommendation = "Immediate medical consultation and lifestyle intervention recommended"
                     emoji = "🔴"
+                    color = "#FF6B6B"
                 elif diabetes_prob >= 0.4:
                     risk_level = "MODERATE RISK"
                     risk_class = "risk-moderate"
                     recommendation = "Regular monitoring and lifestyle changes advised"
                     emoji = "🟡"
+                    color = "#FFD93D"
                 else:
                     risk_level = "LOW RISK"
                     risk_class = "risk-low"
                     recommendation = "Maintain healthy lifestyle with annual checkups"
                     emoji = "🟢"
+                    color = "#6BCF7F"
                 
                 # Display results
                 st.markdown("---")
@@ -312,30 +332,33 @@ if models:
                 with res_col3:
                     st.metric("Assigned Cluster", f"Cluster {cluster}")
                 
-                # Risk visualization
-                fig = go.Figure(go.Indicator(
-                    mode = "gauge+number",
-                    value = diabetes_prob * 100,
-                    title = {'text': "Diabetes Risk Score"},
-                    domain = {'x': [0, 1], 'y': [0, 1]},
-                    gauge = {
-                        'axis': {'range': [None, 100]},
-                        'bar': {'color': "darkblue"},
-                        'steps': [
-                            {'range': [0, 30], 'color': "green"},
-                            {'range': [30, 70], 'color': "yellow"},
-                            {'range': [70, 100], 'color': "red"}
-                        ],
-                        'threshold': {
-                            'line': {'color': "black", 'width': 4},
-                            'thickness': 0.75,
-                            'value': diabetes_prob * 100
-                        }
-                    }
-                ))
+                # Risk visualization using native Streamlit
+                st.subheader("Risk Visualization")
                 
-                fig.update_layout(height=300)
-                st.plotly_chart(fig, use_container_width=True)
+                # Create a simple progress bar for risk
+                risk_percentage = diabetes_prob * 100
+                st.progress(int(risk_percentage))
+                st.caption(f"Risk Score: {risk_percentage:.1f}%")
+                
+                # Create a simple color-coded risk indicator
+                col_ind1, col_ind2, col_ind3 = st.columns(3)
+                with col_ind1:
+                    if risk_percentage < 40:
+                        st.markdown(f'<div style="text-align: center; padding: 10px; background-color: #6BCF7F; color: white; border-radius: 5px;">LOW<br>{risk_percentage:.1f}%</div>', unsafe_allow_html=True)
+                    else:
+                        st.markdown('<div style="text-align: center; padding: 10px; background-color: #E0E0E0; color: #666; border-radius: 5px;">LOW</div>', unsafe_allow_html=True)
+                
+                with col_ind2:
+                    if 40 <= risk_percentage < 70:
+                        st.markdown(f'<div style="text-align: center; padding: 10px; background-color: #FFD93D; color: white; border-radius: 5px;">MODERATE<br>{risk_percentage:.1f}%</div>', unsafe_allow_html=True)
+                    else:
+                        st.markdown('<div style="text-align: center; padding: 10px; background-color: #E0E0E0; color: #666; border-radius: 5px;">MODERATE</div>', unsafe_allow_html=True)
+                
+                with col_ind3:
+                    if risk_percentage >= 70:
+                        st.markdown(f'<div style="text-align: center; padding: 10px; background-color: #FF6B6B; color: white; border-radius: 5px;">HIGH<br>{risk_percentage:.1f}%</div>', unsafe_allow_html=True)
+                    else:
+                        st.markdown('<div style="text-align: center; padding: 10px; background-color: #E0E0E0; color: #666; border-radius: 5px;">HIGH</div>', unsafe_allow_html=True)
                 
                 # Recommendations
                 st.markdown(f'<div class="{risk_class}">Recommendation: {recommendation}</div>', unsafe_allow_html=True)
@@ -350,22 +373,22 @@ if models:
                         st.metric("Diabetic", f"{proba[1]:.1%}")
                     
                     st.write("**Input Features:**")
-                    st.json({
-                        "Age (std)": age,
-                        "BMI (std)": bmi,
-                        "HbA1c (std)": hbA1c,
-                        "Blood Glucose (std)": blood_glucose,
-                        "Hypertension": hypertension,
-                        "Heart Disease": heart_disease,
-                        "Gender": gender,
-                        "Race": race,
-                        "Smoking History": smoking
+                    
+                    # Display input features in a nicer format
+                    feature_table = pd.DataFrame({
+                        'Feature': ['Age (standardized)', 'BMI (standardized)', 'HbA1c (standardized)', 
+                                   'Blood Glucose (standardized)', 'Hypertension', 'Heart Disease',
+                                   'Gender', 'Race', 'Smoking History', 'Assigned Cluster'],
+                        'Value': [f"{age:.2f}", f"{bmi:.2f}", f"{hbA1c:.2f}", f"{blood_glucose:.2f}",
+                                 hypertension, heart_disease, gender, race, smoking, f"Cluster {cluster}"]
                     })
+                    
+                    st.dataframe(feature_table, hide_index=True, use_container_width=True)
     
     with tab2:
         st.markdown('<h2 class="sub-header">Cluster Analysis</h2>', unsafe_allow_html=True)
         
-        # Load sample data for visualization (you should load your actual data)
+        # Load sample data for visualization
         st.info("This section shows characteristics of different patient clusters identified by the model.")
         
         # Create sample cluster data for visualization
@@ -383,35 +406,31 @@ if models:
         })
         
         # Display cluster statistics
+        st.subheader("Cluster Characteristics")
         st.dataframe(cluster_data, use_container_width=True)
         
-        # Cluster visualization
-        fig = px.bar(cluster_data, x='Cluster', y='Diabetes Rate (%)',
-                     title='Diabetes Rate by Cluster',
-                     color='Diabetes Rate (%)',
-                     color_continuous_scale='YlOrRd')
-        st.plotly_chart(fig, use_container_width=True)
+        # Bar chart for diabetes rate by cluster
+        st.subheader("Diabetes Rate by Cluster")
+        st.bar_chart(cluster_data.set_index('Cluster')['Diabetes Rate (%)'])
         
-        # Parallel coordinates plot
-        features_to_show = ['Avg Age (std)', 'Avg BMI (std)', 'Avg HbA1c (std)', 'Avg Glucose (std)']
+        # Display cluster descriptions
+        st.subheader("Cluster Descriptions")
         
-        fig2 = go.Figure(data=
-            go.Parcoords(
-                line=dict(color=cluster_data['Diabetes Rate (%)'],
-                         colorscale='YlOrRd'),
-                dimensions=list([
-                    dict(label='Cluster', values=cluster_data.index),
-                    dict(label='Diabetes Rate (%)', values=cluster_data['Diabetes Rate (%)']),
-                    dict(label='Avg Age', values=cluster_data['Avg Age (std)']),
-                    dict(label='Avg BMI', values=cluster_data['Avg BMI (std)']),
-                    dict(label='Avg HbA1c', values=cluster_data['Avg HbA1c (std)']),
-                    dict(label='Avg Glucose', values=cluster_data['Avg Glucose (std)'])
-                ])
-            )
-        )
+        cluster_descriptions = {
+            0: "High-risk patients with elevated biometric indicators across all measures",
+            1: "Average-risk patients with moderate biometric indicators",
+            2: "Low-risk patients with below-average biometric indicators",
+            3: "Very high-risk patients with significantly elevated indicators",
+            4: "Moderate-risk patients with mixed indicator profile"
+        }
         
-        fig2.update_layout(title='Cluster Characteristics Comparison')
-        st.plotly_chart(fig2, use_container_width=True)
+        for cluster_num in clusters:
+            with st.container():
+                st.markdown(f'<div class="cluster-box">', unsafe_allow_html=True)
+                st.markdown(f"**Cluster {cluster_num}**")
+                st.write(f"Diabetes Rate: {cluster_data.loc[cluster_num, 'Diabetes Rate (%)']}%")
+                st.write(cluster_descriptions[cluster_num])
+                st.markdown('</div>', unsafe_allow_html=True)
     
     with tab3:
         st.markdown('<h2 class="sub-header">Model Insights</h2>', unsafe_allow_html=True)
@@ -421,17 +440,27 @@ if models:
         with col_insight1:
             # Feature importance (sample data - replace with actual)
             feature_importance_data = pd.DataFrame({
-                'Feature': ['blood_glucose_level', 'hbA1c_level', 'age', 'bmi', 
-                           'hypertension', 'heart_disease', 'cluster_1', 'cluster_2'],
+                'Feature': ['Blood Glucose', 'HbA1c Level', 'Age', 'BMI', 
+                           'Hypertension', 'Heart Disease', 'Cluster Features', 'Smoking History'],
                 'Importance': [0.25, 0.18, 0.15, 0.12, 0.08, 0.06, 0.05, 0.03]
             })
             
-            fig3 = px.bar(feature_importance_data.sort_values('Importance', ascending=True),
-                         x='Importance', y='Feature', orientation='h',
-                         title='Top Feature Importance',
-                         color='Importance',
-                         color_continuous_scale='Blues')
-            st.plotly_chart(fig3, use_container_width=True)
+            st.subheader("Top Feature Importance")
+            # Create a horizontal bar chart using matplotlib
+            import matplotlib.pyplot as plt
+            
+            fig, ax = plt.subplots(figsize=(8, 6))
+            feature_importance_sorted = feature_importance_data.sort_values('Importance', ascending=True)
+            y_pos = range(len(feature_importance_sorted))
+            
+            ax.barh(y_pos, feature_importance_sorted['Importance'], color='#2E86AB')
+            ax.set_yticks(y_pos)
+            ax.set_yticklabels(feature_importance_sorted['Feature'])
+            ax.set_xlabel('Importance')
+            ax.set_title('Feature Importance Ranking')
+            ax.grid(axis='x', alpha=0.3)
+            
+            st.pyplot(fig)
         
         with col_insight2:
             # Performance metrics
@@ -440,13 +469,22 @@ if models:
                 'Value': [0.92, 0.88, 0.85, 0.86]
             })
             
-            fig4 = px.bar(metrics_data, x='Metric', y='Value',
-                         title='Model Performance Metrics',
-                         color='Value',
-                         color_continuous_scale='Greens',
-                         text='Value')
-            fig4.update_traces(texttemplate='%{text:.2f}', textposition='outside')
-            st.plotly_chart(fig4, use_container_width=True)
+            st.subheader("Model Performance Metrics")
+            
+            fig2, ax2 = plt.subplots(figsize=(8, 6))
+            bars = ax2.bar(metrics_data['Metric'], metrics_data['Value'], color=['#4CAF50', '#2196F3', '#FF9800', '#9C27B0'])
+            ax2.set_ylim(0, 1)
+            ax2.set_ylabel('Score')
+            ax2.set_title('Model Performance')
+            ax2.grid(axis='y', alpha=0.3)
+            
+            # Add value labels on bars
+            for bar in bars:
+                height = bar.get_height()
+                ax2.text(bar.get_x() + bar.get_width()/2., height + 0.01,
+                        f'{height:.2f}', ha='center', va='bottom')
+            
+            st.pyplot(fig2)
         
         # Model information
         st.markdown("### Model Details")
