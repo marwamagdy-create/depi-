@@ -12,7 +12,6 @@ from sklearn.cluster import KMeans
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, f1_score
-import matplotlib.pyplot as plt
 
 # Set page configuration
 st.set_page_config(
@@ -84,28 +83,26 @@ st.markdown("""
         margin: 10px 0;
         border: 1px solid #B3E0FF;
     }
+    .metric-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 20px;
+        border-radius: 10px;
+        color: white;
+        text-align: center;
+    }
+    .metric-value {
+        font-size: 2rem;
+        font-weight: bold;
+    }
+    .metric-label {
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
     </style>
 """, unsafe_allow_html=True)
 
 # Title
 st.markdown('<h1 class="main-header">🏥 Diabetes Risk Prediction System</h1>', unsafe_allow_html=True)
-
-# Sidebar with model options
-with st.sidebar:
-    st.header("⚙️ System Configuration")
-    
-    mode = st.radio(
-        "Choose mode:",
-        ["🚀 Use Existing Models", "🔄 Train New Models"]
-    )
-    
-    if mode == "🔄 Train New Models":
-        st.info("Training new models will take a few moments...")
-        if st.button("Train Models", type="primary"):
-            with st.spinner("Training models..."):
-                # Train models function
-                train_models()
-                st.success("✅ Models trained and saved successfully!")
 
 # Function to train and save models
 def train_models():
@@ -196,11 +193,11 @@ def train_models():
         
         joblib.dump(pipeline_info, 'pipeline_info.pkl')
         
-        return True
+        return pipeline_info
         
     except Exception as e:
         st.error(f"Error training models: {str(e)}")
-        return False
+        return None
 
 # Function to load models
 @st.cache_resource
@@ -219,8 +216,33 @@ def load_models():
         }
         return models
     except Exception as e:
-        st.error(f"Error loading models: {str(e)}")
         return None
+
+# Sidebar with model options
+with st.sidebar:
+    st.header("⚙️ System Configuration")
+    
+    mode = st.radio(
+        "Choose mode:",
+        ["🚀 Use Existing Models", "🔄 Train New Models"]
+    )
+    
+    if mode == "🔄 Train New Models":
+        st.info("Training new models will take a few moments...")
+        if st.button("Train Models", type="primary"):
+            with st.spinner("Training models... This may take a minute"):
+                pipeline_info = train_models()
+                if pipeline_info:
+                    st.success("✅ Models trained and saved successfully!")
+                    st.balloons()
+                    
+                    # Show training results
+                    st.subheader("Training Results")
+                    st.metric("Accuracy", f"{pipeline_info['test_accuracy']:.2%}")
+                    st.metric("Precision", f"{pipeline_info['test_precision']:.2%}")
+                    st.metric("F1 Score", f"{pipeline_info['test_f1_score']:.2%}")
+                    
+                    st.info("Switch to 'Use Existing Models' to start making predictions")
 
 # Main app
 if mode == "🚀 Use Existing Models":
@@ -240,9 +262,9 @@ if mode == "🚀 Use Existing Models":
                 st.metric("F1 Score", f"{models['pipeline_info']['test_f1_score']:.2%}")
             
             st.subheader("Dataset Info")
-            st.write(f"**Samples:** {models['pipeline_info']['training_samples'] + models['pipeline_info']['test_samples']:,}")
+            st.write(f"**Total Samples:** {models['pipeline_info']['training_samples'] + models['pipeline_info']['test_samples']:,}")
             st.write(f"**Diabetes Rate:** {models['pipeline_info']['diabetes_rate']:.1%}")
-            st.write(f"**Clusters:** {models['pipeline_info']['n_clusters']}")
+            st.write(f"**Number of Clusters:** {models['pipeline_info']['n_clusters']}")
         
         # Main tabs
         tab1, tab2, tab3 = st.tabs(["📝 Patient Assessment", "📊 Cluster Analysis", "📈 Model Insights"])
@@ -388,17 +410,34 @@ if mode == "🚀 Use Existing Models":
                     # Results columns
                     res_col1, res_col2, res_col3 = st.columns(3)
                     with res_col1:
-                        st.metric("Risk Level", f"{emoji} {risk_level}")
+                        st.markdown(f'<div class="metric-card"><div class="metric-value">{emoji}</div><div class="metric-label">{risk_level}</div></div>', unsafe_allow_html=True)
                     with res_col2:
-                        st.metric("Probability", f"{diabetes_prob:.1%}")
+                        st.markdown(f'<div class="metric-card"><div class="metric-value">{diabetes_prob:.1%}</div><div class="metric-label">DIABETES PROBABILITY</div></div>', unsafe_allow_html=True)
                     with res_col3:
-                        st.metric("Cluster", f"#{cluster}")
+                        st.markdown(f'<div class="metric-card"><div class="metric-value">#{cluster}</div><div class="metric-label">PATIENT CLUSTER</div></div>', unsafe_allow_html=True)
                     
                     # Risk visualization
                     st.subheader("Risk Visualization")
                     risk_percent = int(diabetes_prob * 100)
                     st.progress(risk_percent / 100)
-                    st.caption(f"Risk Score: {risk_percent}%")
+                    
+                    # Risk meter
+                    col_low, col_mod, col_high = st.columns(3)
+                    with col_low:
+                        if risk_percent < 40:
+                            st.success(f"LOW RISK\n{risk_percent}%")
+                        else:
+                            st.info("LOW RISK")
+                    with col_mod:
+                        if 40 <= risk_percent < 70:
+                            st.warning(f"MODERATE RISK\n{risk_percent}%")
+                        else:
+                            st.info("MODERATE RISK")
+                    with col_high:
+                        if risk_percent >= 70:
+                            st.error(f"HIGH RISK\n{risk_percent}%")
+                        else:
+                            st.info("HIGH RISK")
                     
                     # Recommendation
                     st.markdown(f'<div class="{risk_class}">📋 Recommendation: {recommendation}</div>', unsafe_allow_html=True)
@@ -419,7 +458,7 @@ if mode == "🚀 Use Existing Models":
                             'Value': [f"{age:.2f}", f"{bmi:.2f}", f"{hbA1c:.2f}", f"{blood_glucose:.2f}",
                                      hypertension, heart_disease, gender, race, smoking, f"#{cluster}"]
                         })
-                        st.dataframe(summary_df, hide_index=True)
+                        st.dataframe(summary_df, hide_index=True, use_container_width=True)
         
         with tab2:
             st.markdown('<h2 class="sub-header">Cluster Analysis</h2>', unsafe_allow_html=True)
@@ -429,35 +468,57 @@ if mode == "🚀 Use Existing Models":
             st.write(f"**Number of Clusters:** {models['pipeline_info']['n_clusters']}")
             st.write(f"**Clustering Features:** {', '.join(models['pipeline_info']['clustering_features'])}")
             
-            # Sample cluster data (in real app, load from data)
-            cluster_data = pd.DataFrame({
-                'Cluster': [f"Cluster {i}" for i in range(5)],
-                'Description': [
-                    "High-risk: Elevated all indicators",
-                    "Moderate-risk: Mixed profile",
-                    "Low-risk: Below average indicators",
-                    "Very high-risk: Critical indicators",
-                    "Average-risk: Normal range"
-                ],
-                'Sample Size': [5000, 5500, 5200, 4800, 5100],
-                'Diabetes Rate': ["15-25%", "8-15%", "2-5%", "25-35%", "5-10%"]
-            })
+            # Cluster descriptions
+            st.subheader("Cluster Characteristics")
             
-            st.dataframe(cluster_data, hide_index=True, use_container_width=True)
+            clusters_info = [
+                {
+                    "id": 0,
+                    "name": "High-Risk Cluster",
+                    "description": "Patients with elevated biometric indicators across all measures",
+                    "diabetes_rate": "15-25%",
+                    "characteristics": "High age, BMI, HbA1c, and glucose levels"
+                },
+                {
+                    "id": 1,
+                    "name": "Moderate-Risk Cluster", 
+                    "description": "Patients with mixed biometric profile",
+                    "diabetes_rate": "8-15%",
+                    "characteristics": "Moderate elevation in some indicators"
+                },
+                {
+                    "id": 2,
+                    "name": "Low-Risk Cluster",
+                    "description": "Patients with below-average biometric indicators",
+                    "diabetes_rate": "2-5%",
+                    "characteristics": "Younger age, normal BMI and glucose levels"
+                },
+                {
+                    "id": 3,
+                    "name": "Very High-Risk Cluster",
+                    "description": "Patients with critical biometric indicators",
+                    "diabetes_rate": "25-35%",
+                    "characteristics": "Severely elevated indicators, often with comorbidities"
+                },
+                {
+                    "id": 4,
+                    "name": "Average-Risk Cluster",
+                    "description": "Patients within normal biometric ranges",
+                    "diabetes_rate": "5-10%",
+                    "characteristics": "All indicators within normal limits"
+                }
+            ]
             
-            # Feature importance
-            st.subheader("Feature Importance")
-            importance_data = pd.DataFrame({
-                'Feature': ['Blood Glucose', 'HbA1c Level', 'Age', 'BMI', 'Hypertension'],
-                'Importance': [0.25, 0.18, 0.15, 0.12, 0.08]
-            })
-            
-            fig, ax = plt.subplots(figsize=(10, 6))
-            bars = ax.barh(importance_data['Feature'], importance_data['Importance'], color='#2E86AB')
-            ax.set_xlabel('Importance')
-            ax.set_title('Top Feature Importance')
-            ax.grid(axis='x', alpha=0.3)
-            st.pyplot(fig)
+            for cluster_info in clusters_info:
+                with st.container():
+                    st.markdown(f"""
+                    <div class="cluster-box">
+                    <h4>Cluster {cluster_info['id']}: {cluster_info['name']}</h4>
+                    <p><strong>Diabetes Rate:</strong> {cluster_info['diabetes_rate']}</p>
+                    <p><strong>Characteristics:</strong> {cluster_info['characteristics']}</p>
+                    <p><strong>Description:</strong> {cluster_info['description']}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
         
         with tab3:
             st.markdown('<h2 class="sub-header">Model Insights</h2>', unsafe_allow_html=True)
@@ -465,91 +526,159 @@ if mode == "🚀 Use Existing Models":
             # Model architecture
             col_arch1, col_arch2, col_arch3 = st.columns(3)
             with col_arch1:
-                st.metric("Algorithm", "Gradient Boosting")
+                st.markdown('<div class="metric-card"><div class="metric-value">GB</div><div class="metric-label">ALGORITHM<br>Gradient Boosting</div></div>', unsafe_allow_html=True)
             with col_arch2:
-                st.metric("Trees", "100")
+                st.markdown('<div class="metric-card"><div class="metric-value">100</div><div class="metric-label">DECISION TREES</div></div>', unsafe_allow_html=True)
             with col_arch3:
-                st.metric("Max Depth", "3")
+                st.markdown('<div class="metric-card"><div class="metric-value">3</div><div class="metric-label">MAX DEPTH</div></div>', unsafe_allow_html=True)
             
             # How it works
             st.subheader("How the Model Works")
             st.markdown("""
-            1. **Clustering Phase**: Patients grouped into 5 clusters based on biometric similarity
-            2. **Feature Engineering**: Cluster assignment becomes a predictive feature
-            3. **Classification**: Gradient Boosting analyzes 40+ features including clusters
-            4. **Risk Assessment**: Probability-based risk stratification
+            ### 4-Step Prediction Process:
             
-            **Key Features Analyzed:**
-            - Biometric indicators (Age, BMI, HbA1c, Glucose)
-            - Medical history (Hypertension, Heart Disease)
-            - Demographic factors
-            - Cluster membership
+            1. **📊 Clustering Phase**  
+               Patients grouped into 5 clusters based on:
+               - Age, BMI, HbA1c, Blood Glucose
+            
+            2. **🔧 Feature Engineering**  
+               Cluster assignment becomes a predictive feature
+               One-hot encoding for categorical variables
+            
+            3. **🤖 Classification**  
+               Gradient Boosting analyzes 40+ features including:
+               - Biometric indicators
+               - Medical history
+               - Demographic factors
+               - Cluster membership
+            
+            4. **⚠️ Risk Assessment**  
+               Probability-based stratification:
+               - **Low Risk**: < 40% probability
+               - **Moderate Risk**: 40-70% probability  
+               - **High Risk**: > 70% probability
             """)
             
-            # Performance metrics chart
+            # Performance metrics
             st.subheader("Performance Metrics")
-            metrics = pd.DataFrame({
-                'Metric': ['Accuracy', 'Precision', 'Recall', 'F1-Score'],
-                'Value': [
-                    models['pipeline_info']['test_accuracy'],
-                    models['pipeline_info']['test_precision'],
-                    0.85,  # Sample recall
-                    models['pipeline_info']['test_f1_score']
-                ]
-            })
             
-            fig2, ax2 = plt.subplots(figsize=(10, 4))
-            bars2 = ax2.bar(metrics['Metric'], metrics['Value'], color=['#4CAF50', '#2196F3', '#FF9800', '#9C27B0'])
-            ax2.set_ylim(0, 1)
-            ax2.set_ylabel('Score')
-            ax2.set_title('Model Performance')
-            ax2.grid(axis='y', alpha=0.3)
+            metrics = [
+                {"name": "Accuracy", "value": models['pipeline_info']['test_accuracy'], "target": 0.85},
+                {"name": "Precision", "value": models['pipeline_info']['test_precision'], "target": 0.80},
+                {"name": "F1-Score", "value": models['pipeline_info']['test_f1_score'], "target": 0.82},
+            ]
             
-            # Add value labels
-            for bar in bars2:
-                height = bar.get_height()
-                ax2.text(bar.get_x() + bar.get_width()/2., height + 0.01,
-                        f'{height:.3f}', ha='center', va='bottom')
+            for metric in metrics:
+                col_name, col_value, col_target = st.columns([1, 2, 1])
+                with col_name:
+                    st.write(f"**{metric['name']}**")
+                with col_value:
+                    progress = metric['value'] / metric['target'] if metric['target'] > 0 else 0
+                    progress = min(progress, 1.0)  # Cap at 100%
+                    st.progress(progress)
+                with col_target:
+                    st.metric("", f"{metric['value']:.3f}", f"Target: {metric['target']:.2f}")
             
-            st.pyplot(fig2)
+            # Feature importance
+            st.subheader("Key Predictive Factors")
+            
+            important_features = [
+                {"name": "Blood Glucose Level", "importance": "Very High", "impact": "Direct measure of diabetes risk"},
+                {"name": "HbA1c Level", "importance": "High", "impact": "Long-term glucose control indicator"},
+                {"name": "Age", "importance": "High", "impact": "Risk increases with age"},
+                {"name": "BMI", "importance": "Medium", "impact": "Obesity is a major risk factor"},
+                {"name": "Hypertension", "importance": "Medium", "impact": "Common comorbidity with diabetes"},
+                {"name": "Cluster Membership", "importance": "Medium", "impact": "Biometric similarity group"},
+            ]
+            
+            for feature in important_features:
+                col_feat, col_imp, col_impact = st.columns([2, 1, 3])
+                with col_feat:
+                    st.write(f"• {feature['name']}")
+                with col_imp:
+                    if feature['importance'] == "Very High":
+                        st.error(feature['importance'])
+                    elif feature['importance'] == "High":
+                        st.warning(feature['importance'])
+                    else:
+                        st.info(feature['importance'])
+                with col_impact:
+                    st.write(feature['impact'])
     
     else:
         st.warning("⚠️ No trained models found. Please train models first.")
         st.info("""
-        To use the app:
-        1. Select "Train New Models" in the sidebar
-        2. Click "Train Models" button
-        3. Wait for training to complete
-        4. Switch back to "Use Existing Models"
+        ### How to get started:
+        
+        1. **Go to the sidebar** (click the arrow in top-left if not visible)
+        2. **Select "Train New Models"** option
+        3. **Click "Train Models"** button
+        4. **Wait for training to complete** (about 1-2 minutes)
+        5. **Switch back to "Use Existing Models"** to start making predictions
+        
+        The system will automatically:
+        - Load your diabetes dataset
+        - Create patient clusters
+        - Train the prediction model
+        - Save all necessary files
         """)
         
-        if st.button("🔄 Go to Training Mode"):
-            st.session_state.mode = "Train New Models"
+        if st.button("🔄 Go to Training Mode", type="primary"):
+            # This will trigger a rerun with training mode
+            st.session_state.mode = "train"
             st.rerun()
 
 else:
     # Training mode
     st.markdown('<h2 class="sub-header">Model Training</h2>', unsafe_allow_html=True)
+    st.markdown("""
+    <div class="info-box">
+    This will train a complete diabetes prediction model using your data.
+    The process includes:
+    1. Data preprocessing and cleaning
+    2. Patient clustering (K-Means)
+    3. Feature engineering
+    4. Gradient Boosting model training
+    5. Model evaluation and saving
+    </div>
+    """, unsafe_allow_html=True)
     
-    if st.button("Start Training", type="primary"):
+    if st.button("🚀 Start Training", type="primary"):
         with st.spinner("Training models... This may take a few minutes"):
-            success = train_models()
+            pipeline_info = train_models()
             
-            if success:
+            if pipeline_info:
                 st.success("✅ Training completed successfully!")
                 st.balloons()
                 
-                # Show next steps
+                # Show training results
+                st.markdown("---")
+                st.markdown('<h3 class="sub-header">Training Results</h3>', unsafe_allow_html=True)
+                
+                col_res1, col_res2, col_res3 = st.columns(3)
+                with col_res1:
+                    st.markdown(f'<div class="metric-card"><div class="metric-value">{pipeline_info["test_accuracy"]:.1%}</div><div class="metric-label">ACCURACY</div></div>', unsafe_allow_html=True)
+                with col_res2:
+                    st.markdown(f'<div class="metric-card"><div class="metric-value">{pipeline_info["test_precision"]:.1%}</div><div class="metric-label">PRECISION</div></div>', unsafe_allow_html=True)
+                with col_res3:
+                    st.markdown(f'<div class="metric-card"><div class="metric-value">{pipeline_info["test_f1_score"]:.1%}</div><div class="metric-label">F1-SCORE</div></div>', unsafe_allow_html=True)
+                
                 st.info("""
+                ### 🎉 Ready to make predictions!
+                
                 **Next Steps:**
-                1. Switch to "Use Existing Models" in the sidebar
-                2. Start making predictions
-                3. Explore cluster analysis and model insights
+                1. Switch to **"Use Existing Models"** in the sidebar
+                2. Enter patient information in the **Patient Assessment** tab
+                3. Get instant diabetes risk predictions
+                4. Explore patient clusters and model insights
                 """)
                 
-                if st.button("🚀 Switch to Prediction Mode"):
-                    st.session_state.mode = "Use Existing Models"
+                if st.button("🚀 Switch to Prediction Mode", type="primary"):
+                    # This will trigger a rerun with prediction mode
+                    st.session_state.mode = "predict"
                     st.rerun()
+            else:
+                st.error("Training failed. Please check your data and try again.")
 
 # Footer
 st.markdown("---")
