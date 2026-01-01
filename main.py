@@ -106,6 +106,11 @@ st.markdown("""
         margin: 10px 0;
         border-left: 4px solid #2E86AB;
     }
+    .range-info {
+        font-size: 0.8rem;
+        color: #666;
+        margin-top: 5px;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -162,6 +167,15 @@ if models:
         st.markdown("### 🎯 Clustering Features")
         for feature in clustering_features:
             st.write(f"• {feature}")
+        
+        # Display normal ranges for reference
+        st.markdown("### 📊 Typical Ranges (Original Data)")
+        st.markdown("""
+        **Age:** 20-80 years  
+        **BMI:** 15-50 kg/m²  
+        **HbA1c:** 3.5-9%  
+        **Blood Glucose:** 70-300 mg/dL
+        """)
     
     # Main content - Prediction Form
     st.markdown('<h2 class="sub-header">📝 Patient Information Form</h2>', unsafe_allow_html=True)
@@ -171,16 +185,27 @@ if models:
     
     with col1:
         st.markdown("### 🔬 Biometric Information")
-        st.info("Values are standardized (z-scores)\n\n**Positive** = Above average\n**Negative** = Below average\n**0** = Average")
+        st.info("Enter actual patient values (not standardized)")
         
-        age = st.number_input("Age (standardized)", min_value=-3.0, max_value=3.0, value=0.0, step=0.1, 
-                             help="Standardized age score")
-        bmi = st.number_input("BMI (standardized)", min_value=-3.0, max_value=3.0, value=0.0, step=0.1,
-                             help="Standardized BMI score")
-        hbA1c = st.number_input("HbA1c Level (standardized)", min_value=-3.0, max_value=3.0, value=0.0, step=0.1,
-                               help="Standardized HbA1c level")
-        blood_glucose = st.number_input("Blood Glucose (standardized)", min_value=-3.0, max_value=3.0, value=0.0, step=0.1,
-                                       help="Standardized blood glucose level")
+        age = st.number_input("Age (years)", min_value=0.0, max_value=120.0, value=45.0, step=1.0, 
+                             help="Patient's age in years")
+        
+        bmi = st.number_input("BMI (kg/m²)", min_value=10.0, max_value=70.0, value=25.0, step=0.1,
+                             help="Body Mass Index in kg/m²")
+        
+        hbA1c = st.number_input("HbA1c Level (%)", min_value=3.0, max_value=15.0, value=5.5, step=0.1,
+                               help="Glycated hemoglobin percentage")
+        
+        blood_glucose = st.number_input("Blood Glucose (mg/dL)", min_value=50.0, max_value=500.0, value=100.0, step=1.0,
+                                       help="Fasting blood glucose level in mg/dL")
+        
+        # Display input values
+        st.markdown(f"""
+        <div class="range-info">
+        **Entered Values:**  
+        Age: {age} years | BMI: {bmi} kg/m² | HbA1c: {hbA1c}% | Glucose: {blood_glucose} mg/dL
+        </div>
+        """, unsafe_allow_html=True)
     
     with col2:
         st.markdown("### 🏥 Medical History")
@@ -211,7 +236,60 @@ if models:
     # Prediction button
     if st.button("🔍 Assess Diabetes Risk", type="primary", use_container_width=True):
         with st.spinner("Analyzing patient data..."):
-            # Prepare input data
+            # Display entered values for confirmation
+            st.markdown(f"""
+            <div class="info-box">
+            <strong>Patient Data Summary:</strong><br>
+            Age: {age} years | BMI: {bmi} kg/m² | HbA1c: {hbA1c}% | Glucose: {blood_glucose} mg/dL<br>
+            Hypertension: {hypertension} | Heart Disease: {heart_disease} | Gender: {gender}<br>
+            Race: {race} | Smoking: {smoking}
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Step 1: Standardize the input values
+            # Get the training data statistics if available
+            try:
+                # If you have saved the training data mean and std, use them
+                # Otherwise, use typical ranges (you should replace these with actual values from your training)
+                
+                # Get scaler parameters
+                scaler_cluster = models['scaler_cluster']
+                
+                # Create numpy array of raw values
+                raw_values = np.array([[age, bmi, hbA1c, blood_glucose]])
+                
+                # Standardize using the cluster scaler
+                standardized_values = scaler_cluster.transform(raw_values)
+                
+                age_std = standardized_values[0][0]
+                bmi_std = standardized_values[0][1]
+                hbA1c_std = standardized_values[0][2]
+                blood_glucose_std = standardized_values[0][3]
+                
+                # Display standardized values for debugging/transparency
+                st.markdown(f"""
+                <div class="info-box" style="background-color: #f0f0f0;">
+                <strong>Standardized Values (Internal):</strong><br>
+                Age (z-score): {age_std:.2f} | BMI (z-score): {bmi_std:.2f}<br>
+                HbA1c (z-score): {hbA1c_std:.2f} | Glucose (z-score): {blood_glucose_std:.2f}<br>
+                <small>These standardized values are used internally by the model.</small>
+                </div>
+                """, unsafe_allow_html=True)
+                
+            except Exception as e:
+                st.error(f"Error standardizing values: {str(e)}")
+                # Fallback: use manual standardization (replace with your actual training data stats)
+                age_mean, age_std_dev = 42.0, 22.5  # Replace with actual values
+                bmi_mean, bmi_std_dev = 27.3, 6.7    # Replace with actual values
+                hbA1c_mean, hbA1c_std_dev = 5.5, 1.5  # Replace with actual values
+                glucose_mean, glucose_std_dev = 138.0, 40.0  # Replace with actual values
+                
+                age_std = (age - age_mean) / age_std_dev
+                bmi_std = (bmi - bmi_mean) / bmi_std_dev
+                hbA1c_std = (hbA1c - hbA1c_mean) / hbA1c_std_dev
+                blood_glucose_std = (blood_glucose - glucose_mean) / glucose_std_dev
+            
+            # Prepare input data for classification
             gender_Female = 1 if gender == "Female" else 0
             gender_Male = 1 if gender == "Male" else 0
             
@@ -234,13 +312,13 @@ if models:
                 "No Info": "smoking_history_No Info"
             }
             
-            # Create input dictionary
+            # Create input dictionary with STANDARDIZED values
             input_data = {
                 'year': 2020,
-                'age': float(age),
-                'bmi': float(bmi),
-                'hbA1c_level': float(hbA1c),
-                'blood_glucose_level': float(blood_glucose),
+                'age': float(age_std),  # Use standardized age
+                'bmi': float(bmi_std),  # Use standardized BMI
+                'hbA1c_level': float(hbA1c_std),  # Use standardized HbA1c
+                'blood_glucose_level': float(blood_glucose_std),  # Use standardized glucose
                 'gender_Female': gender_Female,
                 'gender_Male': gender_Male,
                 'race:AfricanAmerican': 0,
@@ -264,13 +342,12 @@ if models:
             # Set selected smoking history
             input_data[smoking_encoding[smoking]] = 1
             
-            # Step 1: Clustering
-            clustering_features_array = np.array([[age, bmi, hbA1c, blood_glucose]])
-            clustering_scaled = models['scaler_cluster'].transform(clustering_features_array)
-            cluster = models['kmeans'].predict(clustering_scaled)[0]
+            # Step 2: Clustering using standardized values
+            clustering_features_array = np.array([[age_std, bmi_std, hbA1c_std, blood_glucose_std]])
+            cluster = models['kmeans'].predict(clustering_features_array)[0]
             input_data['cluster'] = cluster
             
-            # Step 2: Prepare for classification
+            # Step 3: Prepare for classification
             new_df = pd.DataFrame([input_data])
             cluster_encoded = models['cluster_encoder'].transform(new_df[['cluster']])
             cluster_encoded_df = pd.DataFrame(
@@ -388,6 +465,7 @@ if models:
                 <div class="cluster-card">
                     <h4>Cluster {cluster}</h4>
                     <p>{cluster_descriptions[cluster]}</p>
+                    <small>Based on standardized biometric values</small>
                 </div>
                 ''', unsafe_allow_html=True)
             
@@ -425,12 +503,16 @@ if models:
                 with col_det2:
                     st.markdown("#### 📋 Input Summary")
                     
-                    # Display input features
+                    # Display both raw and standardized values
                     features = [
-                        ("Age (std)", f"{age:.2f}"),
-                        ("BMI (std)", f"{bmi:.2f}"),
-                        ("HbA1c (std)", f"{hbA1c:.2f}"),
-                        ("Glucose (std)", f"{blood_glucose:.2f}"),
+                        ("Age (years)", f"{age}"),
+                        ("Age (z-score)", f"{age_std:.2f}"),
+                        ("BMI (kg/m²)", f"{bmi}"),
+                        ("BMI (z-score)", f"{bmi_std:.2f}"),
+                        ("HbA1c (%)", f"{hbA1c}"),
+                        ("HbA1c (z-score)", f"{hbA1c_std:.2f}"),
+                        ("Glucose (mg/dL)", f"{blood_glucose}"),
+                        ("Glucose (z-score)", f"{blood_glucose_std:.2f}"),
                         ("Hypertension", hypertension),
                         ("Heart Disease", heart_disease),
                         ("Gender", gender),
@@ -506,19 +588,22 @@ if models:
         st.markdown("""
         ### 📊 How It Works
         
-        1. **Clustering Phase**
-           - Patients grouped into clusters
-           - Based on biometric similarity
+        1. **Input Processing**
+           - Accepts actual patient values (years, kg/m², %, mg/dL)
+           - Automatically standardizes to z-scores
         
-        2. **Feature Engineering**
+        2. **Clustering Phase**
+           - Patients grouped into clusters based on standardized biometrics
+        
+        3. **Feature Engineering**
            - Cluster assignment as predictive feature
            - One-hot encoding for categorical variables
         
-        3. **Prediction Phase**
+        4. **Prediction Phase**
            - Gradient Boosting analyzes all features
            - Generates probability scores
         
-        4. **Risk Stratification**
+        5. **Risk Stratification**
            - Low Risk: < 40% probability
            - Moderate Risk: 40-70% probability
            - High Risk: > 70% probability
