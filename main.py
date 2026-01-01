@@ -1,4 +1,4 @@
-# main.py - Diabetes Prediction System (Debug Version)
+# app.py - Diabetes Prediction System (Prediction Only)
 import streamlit as st
 import numpy as np
 import pandas as pd
@@ -10,500 +10,549 @@ warnings.filterwarnings('ignore')
 st.set_page_config(
     page_title="Diabetes Risk Prediction",
     page_icon="🏥",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
-
-st.title("🏥 Diabetes Risk Prediction System")
 
 # Custom CSS
 st.markdown("""
-<style>
-.stButton>button {
-    background-color: #2E86AB;
-    color: white;
-    font-weight: bold;
-}
-.info-box {
-    background-color: #e8f4f8;
-    padding: 15px;
-    border-radius: 10px;
-    margin: 10px 0;
-    border-left: 5px solid #2E86AB;
-}
-.warning-box {
-    background-color: #fff3cd;
-    padding: 15px;
-    border-radius: 10px;
-    margin: 10px 0;
-    border-left: 5px solid #ffc107;
-}
-.success-box {
-    background-color: #d4edda;
-    padding: 15px;
-    border-radius: 10px;
-    margin: 10px 0;
-    border-left: 5px solid #28a745;
-}
-</style>
+    <style>
+    .main-header {
+        font-size: 2.5rem;
+        color: #2E86AB;
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+    .sub-header {
+        font-size: 1.5rem;
+        color: #2E86AB;
+        margin-top: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    .risk-high {
+        color: #FF6B6B;
+        font-weight: bold;
+        font-size: 1.2rem;
+        padding: 15px;
+        background-color: #FFE6E6;
+        border-radius: 10px;
+        border-left: 5px solid #FF6B6B;
+        margin: 10px 0;
+    }
+    .risk-moderate {
+        color: #FFD93D;
+        font-weight: bold;
+        font-size: 1.2rem;
+        padding: 15px;
+        background-color: #FFF9E6;
+        border-radius: 10px;
+        border-left: 5px solid #FFD93D;
+        margin: 10px 0;
+    }
+    .risk-low {
+        color: #6BCF7F;
+        font-weight: bold;
+        font-size: 1.2rem;
+        padding: 15px;
+        background-color: #E6FFEB;
+        border-radius: 10px;
+        border-left: 5px solid #6BCF7F;
+        margin: 10px 0;
+    }
+    .stButton > button {
+        width: 100%;
+        background-color: #2E86AB;
+        color: white;
+        font-weight: bold;
+        padding: 10px;
+        border-radius: 5px;
+    }
+    .info-box {
+        background-color: #F0F8FF;
+        padding: 20px;
+        border-radius: 10px;
+        border-left: 5px solid #2E86AB;
+        margin: 10px 0;
+    }
+    .metric-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 20px;
+        border-radius: 10px;
+        color: white;
+        text-align: center;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    .metric-value {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+    .metric-label {
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+    .feature-card {
+        background-color: white;
+        padding: 15px;
+        border-radius: 8px;
+        border: 1px solid #E0E0E0;
+        margin: 5px 0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .cluster-card {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        padding: 15px;
+        border-radius: 8px;
+        margin: 10px 0;
+        border-left: 4px solid #2E86AB;
+    }
+    </style>
 """, unsafe_allow_html=True)
 
+# Title
+st.markdown('<h1 class="main-header">🏥 Diabetes Risk Prediction System</h1>', unsafe_allow_html=True)
+
+# Introduction
+st.markdown("""
+<div class="info-box">
+This system uses advanced machine learning to predict diabetes risk based on patient characteristics. 
+Enter the patient information below to get an instant risk assessment.
+</div>
+""", unsafe_allow_html=True)
+
+# Function to load models
 @st.cache_resource
-def load_models_debug():
-    """Load models with detailed debugging"""
+def load_models():
+    """Load all trained models"""
     try:
-        models = {}
-        
-        # Load each model with debug info
-        model_files = {
-            'gb_model': 'diabetes_classification_model.pkl',
-            'scaler_cluster': 'scaler_cluster.pkl', 
-            'scaler_class': 'scaler_classification.pkl',
-            'cluster_encoder': 'cluster_encoder.pkl',
-            'kmeans': 'kmeans_cluster.pkl',
-            'feature_columns': 'feature_columns.pkl',
-            'clustering_features': 'clustering_features.pkl',
-            'pipeline_info': 'pipeline_info.pkl'
+        models = {
+            'gb_model': joblib.load('diabetes_classification_model.pkl'),
+            'scaler_cluster': joblib.load('scaler_cluster.pkl'),
+            'scaler_class': joblib.load('scaler_classification.pkl'),
+            'cluster_encoder': joblib.load('cluster_encoder.pkl'),
+            'kmeans': joblib.load('kmeans_cluster.pkl'),
+            'feature_columns': joblib.load('feature_columns.pkl'),
+            'clustering_features': joblib.load('clustering_features.pkl'),
+            'pipeline_info': joblib.load('pipeline_info.pkl')
         }
-        
-        for key, filename in model_files.items():
-            try:
-                models[key] = joblib.load(filename)
-                st.sidebar.success(f"✅ Loaded: {filename}")
-            except Exception as e:
-                st.sidebar.error(f"❌ Failed: {filename} - {str(e)}")
-                return None
-        
         return models
     except Exception as e:
-        st.error(f"Model loading error: {str(e)}")
+        st.error(f"Error loading models: {str(e)}")
         return None
 
 # Load models
-models = load_models_debug()
+models = load_models()
 
 if models:
-    # Debug info in sidebar
+    # Display model info in sidebar
     with st.sidebar:
-        st.header("🔧 Debug Information")
+        st.success("✅ Models loaded successfully!")
         
-        # Check model type
-        gb_model = models['gb_model']
-        st.write(f"**Model Type:** {type(gb_model).__name__}")
+        st.markdown("### 📋 Model Information")
         
-        # Check if model has predict_proba
-        has_predict_proba = hasattr(gb_model, 'predict_proba')
-        st.write(f"**Has predict_proba:** {has_predict_proba}")
+        # Use safe get methods with defaults
+        n_clusters = models['pipeline_info'].get('n_clusters', 5)
+        diabetes_rate = models['pipeline_info'].get('diabetes_rate', 0.086)
         
-        # Show scaler info
-        scaler_cluster = models['scaler_cluster']
-        if hasattr(scaler_cluster, 'mean_') and hasattr(scaler_cluster, 'scale_'):
-            st.write("**Cluster Scaler Info:**")
-            st.write(f"Means: {scaler_cluster.mean_}")
-            st.write(f"Scales: {scaler_cluster.scale_}")
+        st.write(f"**Number of Clusters:** {n_clusters}")
+        st.write(f"**Diabetes Rate:** {diabetes_rate:.1%}")
         
-        # Feature info
-        st.write(f"**Expected features:** {len(models['feature_columns'])}")
-        st.write(f"**First 5 features:** {models['feature_columns'][:5]}")
+        # Show clustering features if available
+        clustering_features = models['pipeline_info'].get('clustering_features', ['age', 'bmi', 'hbA1c_level', 'blood_glucose_level'])
+        st.markdown("### 🎯 Clustering Features")
+        for feature in clustering_features:
+            st.write(f"• {feature}")
     
-    # Main input form
-    st.header("📝 Patient Information")
+    # Main content - Prediction Form
+    st.markdown('<h2 class="sub-header">📝 Patient Information Form</h2>', unsafe_allow_html=True)
     
+    # Create input form in columns
     col1, col2 = st.columns(2)
     
     with col1:
-        st.subheader("Biometric Information")
+        st.markdown("### 🔬 Biometric Information")
+        st.info("Values are standardized (z-scores)\n\n**Positive** = Above average\n**Negative** = Below average\n**0** = Average")
         
-        # Use wider ranges for testing
-        age = st.slider("Age (years)", 0, 100, 45)
-        bmi = st.slider("BMI (kg/m²)", 15.0, 50.0, 25.0, 0.1)
-        hbA1c = st.slider("HbA1c (%)", 3.0, 15.0, 5.5, 0.1)
-        glucose = st.slider("Blood Glucose (mg/dL)", 50, 300, 100)
-        
-        st.markdown(f"""
-        <div class="info-box">
-        <strong>Current Values:</strong><br>
-        Age: {age} years<br>
-        BMI: {bmi} kg/m²<br>
-        HbA1c: {hbA1c}%<br>
-        Glucose: {glucose} mg/dL
-        </div>
-        """, unsafe_allow_html=True)
+        age = st.number_input("Age (standardized)", min_value=-3.0, max_value=3.0, value=0.0, step=0.1, 
+                             help="Standardized age score")
+        bmi = st.number_input("BMI (standardized)", min_value=-3.0, max_value=3.0, value=0.0, step=0.1,
+                             help="Standardized BMI score")
+        hbA1c = st.number_input("HbA1c Level (standardized)", min_value=-3.0, max_value=3.0, value=0.0, step=0.1,
+                               help="Standardized HbA1c level")
+        blood_glucose = st.number_input("Blood Glucose (standardized)", min_value=-3.0, max_value=3.0, value=0.0, step=0.1,
+                                       help="Standardized blood glucose level")
     
     with col2:
-        st.subheader("Medical & Demographic")
+        st.markdown("### 🏥 Medical History")
         
         hypertension = st.selectbox("Hypertension", ["No", "Yes"])
         heart_disease = st.selectbox("Heart Disease", ["No", "Yes"])
-        gender = st.selectbox("Gender", ["Female", "Male"])
         
+        st.markdown("### 👤 Demographic Information")
+        
+        gender = st.selectbox("Gender", ["Female", "Male"])
         race = st.selectbox("Race/Ethnicity", [
-            "Caucasian", "African American", "Hispanic", "Asian", "Other"
+            "African American",
+            "Asian",
+            "Caucasian",
+            "Hispanic",
+            "Other"
         ])
         
         smoking = st.selectbox("Smoking History", [
-            "Never", "Former", "Current", "Not Current", "Ever", "No Info"
+            "Never",
+            "Former",
+            "Current",
+            "Not Current",
+            "Ever",
+            "No Info"
         ])
     
-    # Manual testing section
-    st.markdown("---")
-    st.header("🧪 Manual Model Testing")
-    
-    test_cols = st.columns(3)
-    
-    with test_cols[0]:
-        st.subheader("Test Case 1: Healthy")
-        if st.button("Load Healthy Profile"):
-            st.session_state.test_case = "healthy"
-            st.rerun()
-    
-    with test_cols[1]:
-        st.subheader("Test Case 2: Moderate")
-        if st.button("Load Moderate Profile"):
-            st.session_state.test_case = "moderate"
-            st.rerun()
-    
-    with test_cols[2]:
-        st.subheader("Test Case 3: High Risk")
-        if st.button("Load High Risk Profile"):
-            st.session_state.test_case = "high"
-            st.rerun()
-    
-    # Handle test cases
-    if 'test_case' in st.session_state:
-        if st.session_state.test_case == "healthy":
-            age, bmi, hbA1c, glucose = 30, 22.0, 5.0, 85
-            hypertension, heart_disease = "No", "No"
-        elif st.session_state.test_case == "moderate":
-            age, bmi, hbA1c, glucose = 55, 28.0, 6.2, 135
-            hypertension, heart_disease = "Yes", "No"
-        elif st.session_state.test_case == "high":
-            age, bmi, hbA1c, glucose = 65, 35.0, 8.5, 250
-            hypertension, heart_disease = "Yes", "Yes"
-        st.session_state.test_case = None
-    
-    if st.button("🔍 Predict Diabetes Risk", type="primary"):
-        with st.spinner("Processing..."):
-            try:
-                # Step 1: Display raw inputs
-                st.markdown("---")
-                st.header("🔍 Processing Steps")
-                
-                with st.expander("Step 1: Raw Inputs", expanded=True):
-                    st.write(f"**Age:** {age} years")
-                    st.write(f"**BMI:** {bmi} kg/m²")
-                    st.write(f"**HbA1c:** {hbA1c}%")
-                    st.write(f"**Glucose:** {glucose} mg/dL")
-                    st.write(f"**Hypertension:** {hypertension}")
-                    st.write(f"**Heart Disease:** {heart_disease}")
-                    st.write(f"**Gender:** {gender}")
-                    st.write(f"**Race:** {race}")
-                    st.write(f"**Smoking:** {smoking}")
-                
-                # Step 2: Standardization
-                with st.expander("Step 2: Standardization"):
-                    scaler = models['scaler_cluster']
-                    raw_array = np.array([[age, bmi, hbA1c, glucose]])
-                    
-                    # Try to get mean and scale for display
-                    if hasattr(scaler, 'mean_') and hasattr(scaler, 'scale_'):
-                        st.write(f"**Scaler Mean:** {scaler.mean_}")
-                        st.write(f"**Scaler Scale:** {scaler.scale_}")
-                    
-                    standardized = scaler.transform(raw_array)
-                    st.write(f"**Standardized Values:**")
-                    st.write(f"- Age (z-score): {standardized[0][0]:.4f}")
-                    st.write(f"- BMI (z-score): {standardized[0][1]:.4f}")
-                    st.write(f"- HbA1c (z-score): {standardized[0][2]:.4f}")
-                    st.write(f"- Glucose (z-score): {standardized[0][3]:.4f}")
-                    
-                    age_std, bmi_std, hba1c_std, glucose_std = standardized[0]
-                
-                # Step 3: Clustering
-                with st.expander("Step 3: Clustering"):
-                    kmeans = models['kmeans']
-                    cluster_input = np.array([[age_std, bmi_std, hba1c_std, glucose_std]])
-                    cluster = kmeans.predict(cluster_input)[0]
-                    
-                    # Get cluster centers for comparison
-                    if hasattr(kmeans, 'cluster_centers_'):
-                        st.write(f"**Cluster Centers Shape:** {kmeans.cluster_centers_.shape}")
-                    
-                    st.write(f"**Assigned Cluster:** {cluster}")
-                
-                # Step 4: Prepare features
-                with st.expander("Step 4: Feature Preparation"):
-                    # Prepare feature dictionary
-                    features = {
-                        'year': 2020,
-                        'age': float(age_std),
-                        'bmi': float(bmi_std),
-                        'hbA1c_level': float(hba1c_std),
-                        'blood_glucose_level': float(glucose_std),
-                        'gender_Female': 1 if gender == "Female" else 0,
-                        'gender_Male': 1 if gender == "Male" else 0,
-                        'race:AfricanAmerican': 1 if race == "African American" else 0,
-                        'race:Asian': 1 if race == "Asian" else 0,
-                        'race:Caucasian': 1 if race == "Caucasian" else 0,
-                        'race:Hispanic': 1 if race == "Hispanic" else 0,
-                        'race:Other': 1 if race == "Other" else 0,
-                        'hypertension': 1 if hypertension == "Yes" else 0,
-                        'heart_disease': 1 if heart_disease == "Yes" else 0,
-                        'smoking_history_current': 1 if smoking == "Current" else 0,
-                        'smoking_history_ever': 1 if smoking == "Ever" else 0,
-                        'smoking_history_former': 1 if smoking == "Former" else 0,
-                        'smoking_history_never': 1 if smoking == "Never" else 0,
-                        'smoking_history_not current': 1 if smoking == "Not Current" else 0,
-                        'smoking_history_No Info': 1 if smoking == "No Info" else 0,
-                        'cluster': int(cluster)
-                    }
-                    
-                    st.write("**Created Features Dictionary**")
-                    st.write(f"Number of features: {len(features)}")
-                    
-                    # Create DataFrame
-                    df = pd.DataFrame([features])
-                    
-                    # Encode cluster
-                    encoder = models['cluster_encoder']
-                    cluster_encoded = encoder.transform(df[['cluster']])
-                    
-                    # Get cluster column names
-                    cluster_cols = encoder.get_feature_names_out(['cluster'])
-                    
-                    # Create cluster DataFrame
-                    cluster_df = pd.DataFrame(
-                        cluster_encoded,
-                        columns=cluster_cols,
-                        index=df.index
-                    )
-                    
-                    # Combine
-                    X_combined = pd.concat([
-                        df.drop(columns=['cluster']).reset_index(drop=True),
-                        cluster_df.reset_index(drop=True)
-                    ], axis=1)
-                    
-                    st.write(f"**Combined DataFrame shape:** {X_combined.shape}")
-                    
-                    # Ensure all expected columns exist
-                    expected_cols = models['feature_columns']
-                    
-                    st.write(f"**Expected columns:** {len(expected_cols)}")
-                    st.write(f"**Our columns:** {len(X_combined.columns)}")
-                    
-                    # Find missing/extra columns
-                    missing = set(expected_cols) - set(X_combined.columns)
-                    extra = set(X_combined.columns) - set(expected_cols)
-                    
-                    if missing:
-                        st.warning(f"Missing columns: {len(missing)}")
-                        for col in list(missing)[:5]:
-                            st.write(f"  - {col}")
-                    
-                    if extra:
-                        st.warning(f"Extra columns: {len(extra)}")
-                        for col in list(extra)[:5]:
-                            st.write(f"  - {col}")
-                    
-                    # Add missing columns with zeros
-                    for col in expected_cols:
-                        if col not in X_combined.columns:
-                            X_combined[col] = 0
-                    
-                    # Select only expected columns
-                    X_final = X_combined[expected_cols]
-                    st.write(f"**Final DataFrame shape:** {X_final.shape}")
-                
-                # Step 5: Scale for classification
-                with st.expander("Step 5: Classification Scaling"):
-                    scaler_class = models['scaler_class']
-                    X_scaled = scaler_class.transform(X_final)
-                    
-                    # Check first few values
-                    st.write("**First 5 scaled values:**")
-                    st.write(X_scaled[0, :5])
-                
-                # Step 6: Prediction
-                with st.expander("Step 6: Model Prediction", expanded=True):
-                    model = models['gb_model']
-                    
-                    # Try different prediction methods
-                    try:
-                        # Method 1: predict_proba
-                        if hasattr(model, 'predict_proba'):
-                            probabilities = model.predict_proba(X_scaled)[0]
-                            st.write(f"**Probabilities (predict_proba):**")
-                            st.write(f"- Class 0 (Non-diabetic): {probabilities[0]:.6f}")
-                            st.write(f"- Class 1 (Diabetic): {probabilities[1]:.6f}")
-                            diabetes_prob = probabilities[1]
-                        else:
-                            st.warning("Model doesn't have predict_proba method")
-                            diabetes_prob = 0.5
-                        
-                        # Method 2: predict
-                        prediction = model.predict(X_scaled)[0]
-                        st.write(f"**Binary Prediction:** {prediction} ({'Diabetic' if prediction == 1 else 'Non-diabetic'})")
-                        
-                        # Method 3: decision_function if available
-                        if hasattr(model, 'decision_function'):
-                            decision_scores = model.decision_function(X_scaled)
-                            st.write(f"**Decision Scores:** {decision_scores[0]:.6f}")
-                        
-                    except Exception as pred_error:
-                        st.error(f"Prediction error: {str(pred_error)}")
-                        # Try direct prediction as fallback
-                        try:
-                            prediction = model.predict(X_scaled)[0]
-                            st.write(f"**Direct Prediction:** {prediction}")
-                            diabetes_prob = float(prediction)
-                        except:
-                            diabetes_prob = 0.5
-                
-                # Step 7: Results Display
-                st.markdown("---")
-                st.header("📊 Prediction Results")
-                
-                # Create metrics
-                col1, col2, col3 = st.columns(3)
-                
-                with col1:
-                    st.metric("Diabetes Probability", f"{diabetes_prob:.1%}")
-                
-                with col2:
-                    risk_level = "HIGH" if diabetes_prob > 0.7 else "MODERATE" if diabetes_prob > 0.4 else "LOW"
-                    st.metric("Risk Level", risk_level)
-                
-                with col3:
-                    st.metric("Patient Cluster", f"#{cluster}")
-                
-                # Risk interpretation
-                st.markdown("### 📋 Risk Interpretation")
-                
-                if diabetes_prob > 0.7:
-                    st.markdown("""
-                    <div class="warning-box">
-                    <h4>🔴 HIGH RISK DETECTED</h4>
-                    <p><strong>Probability:</strong> {:.1%}</p>
-                    <p><strong>Recommendation:</strong> Immediate medical consultation recommended. 
-                    Please schedule an appointment with your healthcare provider.</p>
-                    </div>
-                    """.format(diabetes_prob), unsafe_allow_html=True)
-                elif diabetes_prob > 0.4:
-                    st.markdown("""
-                    <div class="info-box">
-                    <h4>🟡 MODERATE RISK</h4>
-                    <p><strong>Probability:</strong> {:.1%}</p>
-                    <p><strong>Recommendation:</strong> Regular monitoring advised. 
-                    Consider lifestyle modifications and schedule a checkup within 3 months.</p>
-                    </div>
-                    """.format(diabetes_prob), unsafe_allow_html=True)
+    # Prediction button
+    if st.button("🔍 Assess Diabetes Risk", type="primary", use_container_width=True):
+        with st.spinner("Analyzing patient data..."):
+            # Prepare input data
+            gender_Female = 1 if gender == "Female" else 0
+            gender_Male = 1 if gender == "Male" else 0
+            
+            # Race encoding
+            race_encoding = {
+                "African American": "race:AfricanAmerican",
+                "Asian": "race:Asian",
+                "Caucasian": "race:Caucasian",
+                "Hispanic": "race:Hispanic",
+                "Other": "race:Other"
+            }
+            
+            # Smoking encoding
+            smoking_encoding = {
+                "Current": "smoking_history_current",
+                "Ever": "smoking_history_ever",
+                "Former": "smoking_history_former",
+                "Never": "smoking_history_never",
+                "Not Current": "smoking_history_not current",
+                "No Info": "smoking_history_No Info"
+            }
+            
+            # Create input dictionary
+            input_data = {
+                'year': 2020,
+                'age': float(age),
+                'bmi': float(bmi),
+                'hbA1c_level': float(hbA1c),
+                'blood_glucose_level': float(blood_glucose),
+                'gender_Female': gender_Female,
+                'gender_Male': gender_Male,
+                'race:AfricanAmerican': 0,
+                'race:Asian': 0,
+                'race:Caucasian': 0,
+                'race:Hispanic': 0,
+                'race:Other': 0,
+                'hypertension': 1 if hypertension == "Yes" else 0,
+                'heart_disease': 1 if heart_disease == "Yes" else 0,
+                'smoking_history_current': 0,
+                'smoking_history_ever': 0,
+                'smoking_history_former': 0,
+                'smoking_history_never': 0,
+                'smoking_history_not current': 0,
+                'smoking_history_No Info': 0,
+            }
+            
+            # Set selected race
+            input_data[race_encoding[race]] = 1
+            
+            # Set selected smoking history
+            input_data[smoking_encoding[smoking]] = 1
+            
+            # Step 1: Clustering
+            clustering_features_array = np.array([[age, bmi, hbA1c, blood_glucose]])
+            clustering_scaled = models['scaler_cluster'].transform(clustering_features_array)
+            cluster = models['kmeans'].predict(clustering_scaled)[0]
+            input_data['cluster'] = cluster
+            
+            # Step 2: Prepare for classification
+            new_df = pd.DataFrame([input_data])
+            cluster_encoded = models['cluster_encoder'].transform(new_df[['cluster']])
+            cluster_encoded_df = pd.DataFrame(
+                cluster_encoded,
+                columns=models['cluster_encoder'].get_feature_names_out(['cluster']),
+                index=new_df.index
+            )
+            
+            X_new = pd.concat([
+                new_df.drop(columns=['cluster']).reset_index(drop=True),
+                cluster_encoded_df.reset_index(drop=True)
+            ], axis=1)
+            
+            # Ensure all columns match
+            for col in models['feature_columns']:
+                if col not in X_new.columns:
+                    X_new[col] = 0
+            
+            X_new = X_new[models['feature_columns']]
+            
+            # Scale and predict
+            X_new_scaled = models['scaler_class'].transform(X_new)
+            proba = models['gb_model'].predict_proba(X_new_scaled)[0]
+            prediction = models['gb_model'].predict(X_new_scaled)[0]
+            diabetes_prob = proba[1]
+            
+            # Interpret results
+            if diabetes_prob >= 0.7:
+                risk_level = "HIGH RISK"
+                risk_class = "risk-high"
+                recommendation = "Immediate medical consultation recommended. Schedule appointment with endocrinologist."
+                emoji = "🔴"
+            elif diabetes_prob >= 0.4:
+                risk_level = "MODERATE RISK"
+                risk_class = "risk-moderate"
+                recommendation = "Regular monitoring advised. Consider lifestyle modifications and quarterly checkups."
+                emoji = "🟡"
+            else:
+                risk_level = "LOW RISK"
+                risk_class = "risk-low"
+                recommendation = "Maintain healthy lifestyle. Annual checkups recommended."
+                emoji = "🟢"
+            
+            # Display results
+            st.markdown("---")
+            st.markdown('<h2 class="sub-header">📊 Assessment Results</h2>', unsafe_allow_html=True)
+            
+            # Results in metric cards
+            res_col1, res_col2, res_col3 = st.columns(3)
+            
+            with res_col1:
+                st.markdown(f'''
+                <div class="metric-card">
+                    <div class="metric-value">{emoji}</div>
+                    <div class="metric-label">{risk_level}</div>
+                </div>
+                ''', unsafe_allow_html=True)
+            
+            with res_col2:
+                st.markdown(f'''
+                <div class="metric-card">
+                    <div class="metric-value">{diabetes_prob:.1%}</div>
+                    <div class="metric-label">DIABETES PROBABILITY</div>
+                </div>
+                ''', unsafe_allow_html=True)
+            
+            with res_col3:
+                st.markdown(f'''
+                <div class="metric-card">
+                    <div class="metric-value">#{cluster}</div>
+                    <div class="metric-label">PATIENT CLUSTER</div>
+                </div>
+                ''', unsafe_allow_html=True)
+            
+            # Risk visualization
+            st.markdown("### 📈 Risk Visualization")
+            
+            risk_percent = int(diabetes_prob * 100)
+            st.progress(risk_percent / 100, text=f"Risk Score: {risk_percent}%")
+            
+            # Risk level indicators
+            col_low, col_mod, col_high = st.columns(3)
+            with col_low:
+                if risk_percent < 40:
+                    st.success(f"### 🟢 LOW RISK\n{risk_percent}%")
                 else:
-                    st.markdown("""
-                    <div class="success-box">
-                    <h4>🟢 LOW RISK</h4>
-                    <p><strong>Probability:</strong> {:.1%}</p>
-                    <p><strong>Recommendation:</strong> Maintain healthy lifestyle. 
-                    Annual checkups are recommended for ongoing monitoring.</p>
-                    </div>
-                    """.format(diabetes_prob), unsafe_allow_html=True)
-                
-                # Model verification
-                st.markdown("---")
-                st.header("🔬 Model Verification")
-                
-                # Test with extreme values
-                test_cases = [
-                    ("Very Healthy", [25, 20.0, 4.5, 80]),
-                    ("Very High Risk", [70, 40.0, 9.0, 300]),
-                    ("Average", [45, 25.0, 5.5, 100])
-                ]
-                
-                results = []
-                for name, values in test_cases:
-                    test_array = np.array([values])
-                    test_scaled = scaler.transform(test_array)
-                    test_cluster = kmeans.predict(test_scaled)[0]
-                    
-                    # Quick probability estimate
-                    results.append({
-                        "Case": name,
-                        "Age": values[0],
-                        "BMI": values[1],
-                        "HbA1c": values[2],
-                        "Glucose": values[3],
-                        "Cluster": test_cluster
-                    })
-                
-                st.dataframe(pd.DataFrame(results))
-                
-                # Check if probabilities vary
-                st.write("**Note:** If all probabilities are similar, the model may not be learning properly.")
-                
-            except Exception as e:
-                st.error(f"Error in prediction pipeline: {str(e)}")
-                import traceback
-                st.code(traceback.format_exc())
-    
-    # Direct model test
-    st.markdown("---")
-    st.header("⚡ Direct Model Test")
-    
-    direct_test_cols = st.columns(2)
-    
-    with direct_test_cols[0]:
-        test_values = st.text_input("Enter test values (age,bmi,hba1c,glucose):", "45,25,5.5,100")
-    
-    with direct_test_cols[1]:
-        if st.button("Run Direct Test"):
-            try:
-                values = [float(x.strip()) for x in test_values.split(",")]
-                if len(values) == 4:
-                    # Standardize
-                    test_array = np.array([values])
-                    standardized = scaler.transform(test_array)
-                    
-                    # Cluster
-                    cluster = kmeans.predict(standardized)[0]
-                    
-                    # Simple prediction (without full feature engineering)
-                    # Just to see if standardization works
-                    st.write(f"**Test Results:**")
-                    st.write(f"Input: {values}")
-                    st.write(f"Standardized: {standardized[0].tolist()}")
-                    st.write(f"Cluster: {cluster}")
-                    
-                    # Try to predict with just these 4 features
-                    simple_features = standardized
-                    try:
-                        simple_pred = model.predict(simple_features)[0]
-                        st.write(f"Simple Prediction: {simple_pred}")
-                    except:
-                        st.write("Full prediction requires all features")
+                    st.info("### LOW RISK\n< 40%")
+            with col_mod:
+                if 40 <= risk_percent < 70:
+                    st.warning(f"### 🟡 MODERATE RISK\n{risk_percent}%")
                 else:
-                    st.error("Please enter 4 values separated by commas")
-            except Exception as e:
-                st.error(f"Direct test error: {str(e)}")
+                    st.info("### MODERATE RISK\n40-70%")
+            with col_high:
+                if risk_percent >= 70:
+                    st.error(f"### 🔴 HIGH RISK\n{risk_percent}%")
+                else:
+                    st.info("### HIGH RISK\n> 70%")
+            
+            # Recommendation
+            st.markdown(f'<div class="{risk_class}">\n### 📋 Recommendation\n{recommendation}\n</div>', unsafe_allow_html=True)
+            
+            # Cluster information
+            st.markdown("### 🎯 Patient Cluster Information")
+            
+            cluster_descriptions = {
+                0: "**High-Risk Profile**: Elevated biometric indicators, often with comorbidities",
+                1: "**Moderate-Risk Profile**: Mixed biometric profile, requires monitoring",
+                2: "**Low-Risk Profile**: Below-average indicators, healthy profile",
+                3: "**Very High-Risk Profile**: Critical indicators, urgent attention needed",
+                4: "**Average-Risk Profile**: Normal biometric ranges"
+            }
+            
+            if cluster in cluster_descriptions:
+                st.markdown(f'''
+                <div class="cluster-card">
+                    <h4>Cluster {cluster}</h4>
+                    <p>{cluster_descriptions[cluster]}</p>
+                </div>
+                ''', unsafe_allow_html=True)
+            
+            # Detailed analysis
+            with st.expander("📋 View Detailed Analysis"):
+                col_det1, col_det2 = st.columns(2)
+                
+                with col_det1:
+                    st.markdown("#### 📊 Prediction Probabilities")
+                    prob_non_diabetic = proba[0]
+                    prob_diabetic = proba[1]
+                    
+                    # Create a simple bar chart using columns
+                    prob_col1, prob_col2 = st.columns(2)
+                    with prob_col1:
+                        height_non = int(prob_non_diabetic * 100)
+                        st.markdown(f'''
+                        <div style="text-align: center; margin: 10px 0;">
+                            <div style="font-size: 2rem; color: #4CAF50; font-weight: bold;">{prob_non_diabetic:.1%}</div>
+                            <div style="background-color: #4CAF50; height: {height_non}px; width: 100%; border-radius: 5px;"></div>
+                            <div style="margin-top: 5px;">Non-Diabetic</div>
+                        </div>
+                        ''', unsafe_allow_html=True)
+                    
+                    with prob_col2:
+                        height_diab = int(prob_diabetic * 100)
+                        st.markdown(f'''
+                        <div style="text-align: center; margin: 10px 0;">
+                            <div style="font-size: 2rem; color: #FF6B6B; font-weight: bold;">{prob_diabetic:.1%}</div>
+                            <div style="background-color: #FF6B6B; height: {height_diab}px; width: 100%; border-radius: 5px;"></div>
+                            <div style="margin-top: 5px;">Diabetic</div>
+                        </div>
+                        ''', unsafe_allow_html=True)
+                
+                with col_det2:
+                    st.markdown("#### 📋 Input Summary")
+                    
+                    # Display input features
+                    features = [
+                        ("Age (std)", f"{age:.2f}"),
+                        ("BMI (std)", f"{bmi:.2f}"),
+                        ("HbA1c (std)", f"{hbA1c:.2f}"),
+                        ("Glucose (std)", f"{blood_glucose:.2f}"),
+                        ("Hypertension", hypertension),
+                        ("Heart Disease", heart_disease),
+                        ("Gender", gender),
+                        ("Race", race),
+                        ("Smoking", smoking),
+                        ("Cluster", f"#{cluster}")
+                    ]
+                    
+                    for feature_name, feature_value in features:
+                        st.markdown(f'''
+                        <div class="feature-card">
+                            <div style="font-weight: bold; color: #2E86AB;">{feature_name}</div>
+                            <div style="font-size: 1.1rem;">{feature_value}</div>
+                        </div>
+                        ''', unsafe_allow_html=True)
+            
+            # Action steps
+            st.markdown("### 🚀 Next Steps")
+            
+            if risk_level == "HIGH RISK":
+                st.markdown("""
+                **Immediate Actions:**
+                1. 🏥 Schedule appointment with healthcare provider
+                2. 🩸 Get comprehensive blood tests
+                3. 🍎 Consult with nutritionist
+                4. 🏃‍♂️ Start supervised exercise program
+                5. 📊 Regular glucose monitoring
+                """)
+            elif risk_level == "MODERATE RISK":
+                st.markdown("""
+                **Recommended Actions:**
+                1. 🩺 Schedule doctor's appointment within 1 month
+                2. 📈 Monitor indicators quarterly
+                3. 🥗 Adopt healthy diet
+                4. 🚶‍♂️ Increase physical activity
+                5. ⚖️ Manage weight effectively
+                """)
+            else:
+                st.markdown("""
+                **Maintenance Actions:**
+                1. 🩺 Annual health checkup
+                2. 🥗 Maintain balanced diet
+                3. 🏃‍♂️ Regular physical activity
+                4. 😴 Adequate sleep and stress management
+                5. 📊 Periodic self-assessment
+                """)
+    
+    # Model information section
+    st.markdown("---")
+    st.markdown('<h2 class="sub-header">🤖 Model Information</h2>', unsafe_allow_html=True)
+    
+    col_info1, col_info2 = st.columns(2)
+    
+    with col_info1:
+        st.markdown("""
+        ### 🎯 Model Architecture
+        
+        **Algorithm:** Gradient Boosting Classifier
+        
+        **Key Components:**
+        - 100 Decision Trees
+        - Maximum Depth: 3 levels
+        - Learning Rate: 0.1
+        
+        **Features Analyzed:**
+        - Biometric indicators (Age, BMI, HbA1c, Glucose)
+        - Medical history (Hypertension, Heart Disease)
+        - Demographic factors (Gender, Race, Smoking)
+        - Patient cluster membership
+        """)
+    
+    with col_info2:
+        st.markdown("""
+        ### 📊 How It Works
+        
+        1. **Clustering Phase**
+           - Patients grouped into clusters
+           - Based on biometric similarity
+        
+        2. **Feature Engineering**
+           - Cluster assignment as predictive feature
+           - One-hot encoding for categorical variables
+        
+        3. **Prediction Phase**
+           - Gradient Boosting analyzes all features
+           - Generates probability scores
+        
+        4. **Risk Stratification**
+           - Low Risk: < 40% probability
+           - Moderate Risk: 40-70% probability
+           - High Risk: > 70% probability
+        """)
     
 else:
+    # Models not loaded - show error
     st.error("""
-    ## ❌ Models Not Loaded
+    ⚠️ **Models could not be loaded!**
     
-    Please check:
-    1. All .pkl files are in the same directory as this app
-    2. File names are correct
-    3. You have trained the models first
+    **Required model files (8 files total):**
     
-    **Required files:**
-    - diabetes_classification_model.pkl
-    - scaler_cluster.pkl
-    - scaler_classification.pkl  
-    - cluster_encoder.pkl
-    - kmeans_cluster.pkl
-    - feature_columns.pkl
-    - clustering_features.pkl
-    - pipeline_info.pkl
+    1. `diabetes_classification_model.pkl`
+    2. `scaler_cluster.pkl`
+    3. `scaler_classification.pkl`
+    4. `cluster_encoder.pkl`
+    5. `kmeans_cluster.pkl`
+    6. `feature_columns.pkl`
+    7. `clustering_features.pkl`
+    8. `pipeline_info.pkl`
+    
+    **To fix this:**
+    1. Make sure all model files are in the same directory as this app
+    2. Check that the file names match exactly
+    3. Verify file permissions
+    4. If files don't exist, you need to train the models first using a separate training script
     """)
 
 # Footer
 st.markdown("---")
-st.markdown("*For demonstration purposes only. Always consult healthcare professionals for medical advice.*")
+st.markdown("""
+<div style="text-align: center; color: #666; font-size: 0.9rem; padding: 20px;">
+    <p>🏥 <strong>Diabetes Risk Prediction System</strong></p>
+    <p><small>Developed for Healthcare Analytics | For screening purposes only</small></p>
+    <p><small>⚠️ Always consult healthcare professionals for medical diagnosis</small></p>
+</div>
+""", unsafe_allow_html=True)
